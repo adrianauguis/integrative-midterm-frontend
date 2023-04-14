@@ -11,7 +11,7 @@ class widgetTree extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Midterm Integrative Programming',
-      home: loggedIn ? const HomePage() : const loginPage(),
+      home: loggedIn ? HomePage() : const loginPage(),
     );
   }
 }

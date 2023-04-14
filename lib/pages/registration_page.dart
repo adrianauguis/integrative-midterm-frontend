@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:integrative_midterm/model/api_response.dart';
+import 'package:integrative_midterm/model/user_model.dart';
 import 'package:integrative_midterm/pages/home_page.dart';
 import 'package:integrative_midterm/services/api_services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class registrationPage extends StatefulWidget {
   const registrationPage({Key? key}) : super(key: key);
@@ -14,7 +17,7 @@ class _registrationPageState extends State<registrationPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _controllerEmail = TextEditingController();
   final TextEditingController _controllerPassword = TextEditingController();
-  final TextEditingController _controllerRole = TextEditingController();
+  String? _controllerRole;
   final TextEditingController _controllerStatus = TextEditingController();
 
   @override
@@ -57,8 +60,12 @@ class _registrationPageState extends State<registrationPage> {
                                     label: Text("Email")
                                 ),
                                 validator: (val) {
-                                  if(!(val!.isEmpty) && !RegExp(r"^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,253}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,253}[a-zA-Z0-9])?)*$").hasMatch(val)){
+                                  if(val == ''){
+                                    return 'Please enter your email';
+                                  }else if(!(val!.isEmpty) && !RegExp(r"^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,253}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,253}[a-zA-Z0-9])?)*$").hasMatch(val)){
                                     return "Enter a valid email address";
+                                  }else{
+                                    return null;
                                   }
                                 },
                               ),
@@ -77,20 +84,27 @@ class _registrationPageState extends State<registrationPage> {
                                 },
                               ),
                             ),
-                            const SizedBox(height: 10,),
-                            Container(
-                              child: TextFormField(
-                                controller: _controllerRole,
-                                decoration: const InputDecoration(
-                                    border: OutlineInputBorder(),
-                                    label: Text("Role")),
-                                validator: (value) {
-                                  return (value == '') ? 'Please enter your name' : null;
+                            const SizedBox(height: 10),
+                            DropdownButtonFormField(
+                              decoration: const InputDecoration(
+                                  label: Text("Role"),
+                                  border: OutlineInputBorder()),
+                                items: const [
+                                  DropdownMenuItem(
+                                      value: "Admin",
+                                      child: Text("Admin")),
+                                  DropdownMenuItem(
+                                      value: "User",
+                                      child: Text("User")),
+                                ],
+                                validator: (value){
+                                  return (value == null) ? 'Please enter your Role' : null;
                                 },
-                              ),
-
-                            ),
-                            const SizedBox(height: 10,),
+                                onChanged: (value){
+                                  _controllerRole = value;
+                                  print(_controllerRole);
+                                }),
+                            const SizedBox(height: 10),
                             Container(
                               child: TextFormField(
                                 controller: _controllerStatus,
@@ -98,7 +112,7 @@ class _registrationPageState extends State<registrationPage> {
                                     border: OutlineInputBorder(),
                                     label: Text("Status")),
                                 validator: (value) {
-                                  return (value == '') ? 'Please enter your id' : null;
+                                  return (value == '') ? 'Please enter your Status' : null;
                                 },
                               ),
                             ),
@@ -117,13 +131,24 @@ class _registrationPageState extends State<registrationPage> {
                                   ),
                                 ),
                                 onPressed: () async{
+
+                                  void saveToken(User user) async{
+                                    SharedPreferences pref = await SharedPreferences.getInstance();
+                                    await pref.setInt('userId', user.id ??  0 );
+                                    print("userId saved: ${user.id}");
+                                    await pref.setString('role', user.role??"User");
+                                    print("userRole saved: ${user.role}");
+                                    Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (context)=> HomePage(userID: user.id,role: user.role)), (route) => false);
+                                  }
+
                                   if (_formKey.currentState!.validate()){
-                                    var res = await apiProvider.register(_controllerEmail.text, _controllerPassword.text, _controllerRole.text, _controllerStatus.text);
-                                    if (res == 200){
-                                      Navigator.push(context,
-                                          MaterialPageRoute(builder: (context) => const HomePage()));
-                                    }else{
-                                      throw Exception('Failed to register');
+                                    ApiResponse apiResponse = await apiProvider.register(_controllerEmail.text, _controllerPassword.text, _controllerRole??"User", _controllerStatus.text);
+                                    if(apiResponse.error == null){
+                                      saveToken(apiResponse.data as User);
+                                    }
+                                    else{
+                                      //debugPrint(response.);
+                                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${apiResponse.error}')));
                                     }
                                   }
                                 },

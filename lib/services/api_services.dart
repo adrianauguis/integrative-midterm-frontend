@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:integrative_midterm/model/api_response.dart';
+import 'package:integrative_midterm/model/user_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiProvider {
@@ -52,8 +54,9 @@ class ApiProvider {
     return jsonBody;
   }
 
-  Future register(String email, String password, String role, String status) async {
+  Future<ApiResponse> register(String email, String password, String role, String status) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
+    ApiResponse apiResponse = ApiResponse();
     final response = await http.post(
       Uri.parse('$apiUrl/register'),
       body: {
@@ -64,41 +67,82 @@ class ApiProvider {
       },
     );
 
-    if (response.statusCode == 200) {
-      prefs.setBool('loggedIn', true);
-      final json = jsonDecode(response.body);
-      final user = json['user'];
-      final token = json['token'];
+    // if (response.statusCode == 200) {
+    //   prefs.setBool('loggedIn', true);
+    //   final json = jsonDecode(response.body);
+    //   final user = json['user'];
+    //   final token = json['token'];
+    //
+    //   if (user != null && token != null) {
+    //     return response.statusCode;
+    //   }
+    // }
 
-      if (user != null && token != null) {
-        return response.statusCode;
-      }
+    switch(response.statusCode){
+      case 200:
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        prefs.setBool('loggedIn', true);
+        apiResponse.data = User.fromJson(jsonDecode(response.body)['user']);
+        break;
+      case 422:
+        final errors = jsonDecode(response.body)['errors'];
+        apiResponse.error = errors[errors.key.elementAt(0)][0];
+        break;
+      case 403:
+        apiResponse.error = jsonDecode(response.body)['message'];
+        break;
+      default:
+        apiResponse.error = "Something went wrong";
+        break;
     }
-    throw Exception('Failed to register');
+    return apiResponse;
   }
 
-  Future login(String email, String password) async {
+  Future<ApiResponse> login(String email, String password) async {
+    ApiResponse apiResponse = ApiResponse();
     final response = await http.post(
       Uri.parse('$apiUrl/login'),
+      headers: {'Accept': 'application/json'},
       body: {
         'email': email,
         'password': password,
       },
     );
 
-    if (response.statusCode == 200) {
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      prefs.setBool('loggedIn', true);
-      print("login success");
-      final json = jsonDecode(response.body);
-      final user = json['user'];
-      final token = json['token'];
+    // if (response.statusCode == 200) {
+    //   SharedPreferences prefs = await SharedPreferences.getInstance();
+    //   prefs.setBool('loggedIn', true);
+    //   print("login success");
+    //   final json = jsonDecode(response.body);
+    //   final user = json['user'];
+    //   final token = json['token'];
+    //
+    //
+    //
+    //   return response.statusCode;
+    //   if (user != null && token != null) {
+    //     // return response.statusCode;
+    //   }
+    // }
 
-      if (user != null && token != null) {
-        return response.statusCode;
-      }
+    switch(response.statusCode){
+      case 200:
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        prefs.setBool('loggedIn', true);
+        apiResponse.data = User.fromJson(jsonDecode(response.body)['user']);
+        break;
+      case 422:
+        final errors = jsonDecode(response.body)['errors'];
+        apiResponse.error = errors[errors.key.elementAt(0)][0];
+        break;
+      case 403:
+        apiResponse.error = jsonDecode(response.body)['message'];
+        break;
+      default:
+        apiResponse.error = "Invalid email or password";
+        break;
     }
-    throw Exception('Failed to login API');
+    return apiResponse;
   }
 
   Future<void> logout() async {
@@ -111,6 +155,51 @@ class ApiProvider {
       print("successfully cleared shared preferences");
     }
     throw Exception('Failed to logout');
+  }
+
+  Future<ApiResponse> getUser()async{
+    ApiResponse apiResponse = ApiResponse();
+    try{
+      String token = await getToken();
+      var response = await http.get(
+        Uri.parse('/user'),
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token'
+        },
+      );
+      switch(response.statusCode){
+        case 200:
+          apiResponse.data = User.fromJson(jsonDecode(response.body));
+          break;
+        case 401:
+          apiResponse.error = "Unauthorized";
+          break;
+        default:
+          apiResponse.error = "Something went wrong";
+          break;
+      }
+    }
+    catch(err){
+      apiResponse.error = "Server error";
+    }
+
+    return apiResponse;
+  }
+
+  Future <String> getToken() async {
+    SharedPreferences pref = await SharedPreferences.getInstance();
+    return pref.getString('token') ?? '';
+  }
+
+  Future <int> getUserID() async {
+    SharedPreferences pref = await SharedPreferences.getInstance();
+    return pref.getInt('userId') ?? 0;
+  }
+
+  Future <String> getUserRole() async {
+    SharedPreferences pref = await SharedPreferences.getInstance();
+    return pref.getString('role') ?? "User";
   }
 
   Future<void> deleteJson(String endpoint) async {

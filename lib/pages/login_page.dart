@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:integrative_midterm/model/api_response.dart';
+import 'package:integrative_midterm/model/user_model.dart';
 import 'package:integrative_midterm/pages/home_page.dart';
 import 'package:integrative_midterm/pages/registration_page.dart';
 import 'package:integrative_midterm/services/api_services.dart';
@@ -14,39 +16,37 @@ class loginPage extends StatefulWidget {
 class _loginPageState extends State<loginPage> {
   ApiProvider apiProvider = ApiProvider();
   final _formKey = GlobalKey<FormState>();
-  bool checkedValue = false;
-  bool checkboxValue = false;
-  bool _passwordVisible = true;
+  bool _passwordVisible = false;
   String? errorMessage = '';
   bool isLogin = true;
 
   final TextEditingController _controllerEmail = TextEditingController();
   final TextEditingController _controllerPassword = TextEditingController();
 
-  Widget _submitButton(BuildContext context, String email, String password){
-    return Container(
-        child: ElevatedButton(
-          onPressed: ()async{
-            if (_formKey.currentState!.validate()) {
-              var res = await apiProvider.login(email, password);
-              if (res == 200){
-                Navigator.push(context,
-                    MaterialPageRoute(builder: (context) => const HomePage()));
-              }else{
-                throw Exception('Failed to login');
-              }
-            }
-          },
-          child: Text('Login'.toUpperCase(),
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              )
-          ),
-        )
-    );
-  }
+  // Widget _submitButton(BuildContext context, String email, String password){
+  //   return Container(
+  //       child: ElevatedButton(
+  //         onPressed: ()async{
+  //           if (_formKey.currentState!.validate()) {
+  //             var res = await apiProvider.login(email, password);
+  //             if (res == 200){
+  //               Navigator.push(context,
+  //                   MaterialPageRoute(builder: (context) => const HomePage()));
+  //             }else{
+  //               throw Exception('Failed to login');
+  //             }
+  //           }
+  //         },
+  //         child: Text('Login'.toUpperCase(),
+  //             style: const TextStyle(
+  //               fontSize: 20,
+  //               fontWeight: FontWeight.bold,
+  //               color: Colors.white,
+  //             )
+  //         ),
+  //       )
+  //   );
+  // }
 
   Widget _loginOrRegisterButton(){
     return TextButton(
@@ -114,7 +114,9 @@ class _loginPageState extends State<loginPage> {
                                     errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(100.0), borderSide: const BorderSide(color: Colors.red, width: 2.0)),
                                     focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(100.0), borderSide: const BorderSide(color: Colors.red, width: 2.0))),
                                 validator: (val) {
-                                  if(!(val!.isEmpty) && !RegExp(r"^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,253}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,253}[a-zA-Z0-9])?)*$").hasMatch(val)){
+                                  if(val == ''){
+                                    return 'Please enter your email';
+                                  }else if(!(val!.isEmpty) && !RegExp(r"^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,253}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,253}[a-zA-Z0-9])?)*$").hasMatch(val)){
                                     return "Enter a valid email address";
                                   }
                                   return null;
@@ -153,11 +155,58 @@ class _loginPageState extends State<loginPage> {
                                     },
                                   ),
                                 ),
+                                validator: (val){
+                                  if(val == ''){
+                                    return 'Please enter your password';
+                                  }else{
+                                    return null;
+                                  }
+                                },
                               ),
                             ),
                             const SizedBox(height: 20,),
                             _errorMessage(),
-                            _submitButton(context, _controllerEmail.text,_controllerPassword.text),
+                          Container(
+                              child: ElevatedButton(
+                                onPressed: ()async{
+
+                                  void saveToken(User user) async{
+                                    SharedPreferences pref = await SharedPreferences.getInstance();
+                                    await pref.setInt('userId', user.id ??  0 );
+                                    print("userId saved: ${user.id}");
+                                    await pref.setString('role', user.role??"User");
+                                    print("userRole saved: ${user.role}");
+                                    Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (context)=> HomePage(userID: user.id,role: user.role)), (route) => false);
+                                  }
+
+                                  if (_formKey.currentState!.validate()) {
+                                    ApiResponse apiResponse = await apiProvider.login(_controllerEmail.text, _controllerPassword.text);
+                                    if(apiResponse.error == null){
+                                      saveToken(apiResponse.data as User);
+                                    }
+                                    else{
+                                      //debugPrint(response.);
+                                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${apiResponse.error}')));
+                                    }
+
+                                    // if (res == 200){
+                                    //   Navigator.push(context,
+                                    //       MaterialPageRoute(builder: (context) => const HomePage()));
+                                    // }else{
+                                    //   throw Exception('Failed to login');
+                                    // }
+                                  }
+                                },
+                                child: Text('Login'.toUpperCase(),
+                                    style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    )
+                                ),
+                              )
+                            ),
+                            // _submitButton(context, _controllerEmail.text,_controllerPassword.text),
                             _loginOrRegisterButton(),
                           ],
                         ),

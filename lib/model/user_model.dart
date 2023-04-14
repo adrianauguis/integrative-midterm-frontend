@@ -26,18 +26,20 @@ class UserModel {
 
 class User {
   User({
-    required this.id,
-    required this.email,
-    required this.password,
-    required this.role,
-    required this.status,
+    this.id,
+    this.email,
+    this.password,
+    this.role,
+    this.status,
+    this.token
   });
 
-  int id;
-  String email;
-  String password;
-  String role;
-  String status;
+  int? id;
+  String? email;
+  String? password;
+  String? role;
+  String? status;
+  String? token;
 
   factory User.fromJson(Map<String, dynamic> json) => User(
     id: json["id"],
@@ -45,6 +47,7 @@ class User {
     password: json["password"],
     role: json["role"],
     status: json["status"],
+    token: json["token"],
   );
 
   Map<String, dynamic> toJson() => {
@@ -53,5 +56,6 @@ class User {
     "password": password,
     "role": role,
     "status": status,
+    "token": token,
   };
 }
